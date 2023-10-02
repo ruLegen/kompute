@@ -5,6 +5,7 @@
 #include "Manager.hpp"
 #include "Sequence.hpp"
 #include "Tensor.hpp"
+#include "Image2D.hpp"
 
 #include "operations/OpAlgoDispatch.hpp"
 #include "operations/OpBase.hpp"

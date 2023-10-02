@@ -10,6 +10,7 @@ cmake_minimum_required(VERSION 3.20)
 
 add_library(kompute Algorithm.cpp
     Manager.cpp
+    Image2D.cpp
     OpAlgoDispatch.cpp
     OpMemoryBarrier.cpp
     OpTensorCopy.cpp
