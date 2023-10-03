@@ -38,7 +38,8 @@ namespace kp {
 
 
         uint32_t findMemoryIndex(vk::PhysicalDeviceMemoryProperties memoryProperties,
-                                  vk::MemoryPropertyFlags desiredMemoryTypes);
+                                 vk::MemoryRequirements memoryRequirements,
+                                 vk::MemoryPropertyFlags desiredMemoryTypes);
 
         vk::Image mCreatedImage;
         vk::DeviceMemory mBindedMemory;

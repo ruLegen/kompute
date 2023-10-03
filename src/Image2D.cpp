@@ -15,6 +15,8 @@ kp::Image2D::Image2D(std::shared_ptr<vk::PhysicalDevice> physicalDevice,std::sha
 
 void kp::Image2D::rebuild(vk::Format imageFormat, int width, int height, void *data) {
     KP_LOG_DEBUG("Kompute Image2D creating buffer");
+    if(data == nullptr)
+        return;
 
     if (!this->mPhysicalDevice) {
         throw std::runtime_error("Kompute Image2D phyisical device is null");
@@ -30,14 +32,14 @@ void kp::Image2D::rebuild(vk::Format imageFormat, int width, int height, void *d
                                                1,
                                                1,
                                                vk::SampleCountFlagBits::e1,
-                                               vk::ImageTiling::eOptimal,
-                                               vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage,
+                                               vk::ImageTiling::eLinear,
+                                               vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
                                                vk::SharingMode::eExclusive);
     auto createdImage =  this->mDevice->createImage(imageCreateInfo);
     auto imageMemoryRequirements = this->mDevice->getImageMemoryRequirements(createdImage);
 
     auto deviceMemoryProps = this->mPhysicalDevice->getMemoryProperties();
-    auto memoryIndex = this->findMemoryIndex(deviceMemoryProps,getStagingMemoryPropertyFlags());
+    auto memoryIndex = this->findMemoryIndex(deviceMemoryProps,imageMemoryRequirements, getStagingMemoryPropertyFlags());
 
     auto allocateInfo = vk::MemoryAllocateInfo(imageMemoryRequirements.size,memoryIndex);
 
@@ -90,22 +92,14 @@ vk::MemoryPropertyFlags kp::Image2D::getStagingMemoryPropertyFlags() {
 }
 
 uint32_t kp::Image2D::findMemoryIndex(vk::PhysicalDeviceMemoryProperties memoryProperties,
+                                     vk::MemoryRequirements memoryRequirements,
                                      vk::MemoryPropertyFlags memoryPropertyFlags) {
-    uint32_t memoryTypeIndex = -1;
-    bool memoryTypeIndexFound = false;
+
     for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-        if (memoryRequirements.memoryTypeBits & (1 << i)) {
-            if (((memoryProperties.memoryTypes[i]).propertyFlags &
-                 memoryPropertyFlags) == memoryPropertyFlags) {
-                memoryTypeIndex = i;
-                memoryTypeIndexFound = true;
-                break;
-            }
+        if (memoryRequirements.memoryTypeBits & (1 << i)
+        && (memoryProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) == memoryPropertyFlags) {
+            return i;
         }
     }
-    if (!memoryTypeIndexFound) {
-        throw std::runtime_error(
-                "Memory type index for buffer creation not found");
-    }
-    return  memoryTypeIndex;
+    throw std::runtime_error("failed to find suitable memory type!");
 }

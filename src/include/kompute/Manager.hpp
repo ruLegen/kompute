@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 #include "kompute/Core.hpp"
-
+#include "kompute/Image2D.hpp"
 #include "kompute/Sequence.hpp"
 #include "logger/Logger.hpp"
 
@@ -102,6 +102,20 @@ class Manager
         return this->tensorT<float>(data, tensorType);
     }
 
+    std::shared_ptr<Image2D> image2d(vk::Format imageFormat, int width, int height, void *data) {
+        auto res = std::make_shared<Image2D>(this->mPhysicalDevice,
+                this->mDevice,
+                imageFormat,
+                width,
+                 height,
+                 data);
+
+        if (this->mManageResources) {
+            this->mManagedImages2D.push_back(res);
+        }
+
+        return  res;
+    }
     std::shared_ptr<Tensor> tensor(
       void* data,
       uint32_t elementTotalCount,
@@ -232,6 +246,7 @@ class Manager
     bool mFreeDevice = false;
 
     // -------------- ALWAYS OWNED RESOURCES
+    std::vector<std::weak_ptr<Image2D>> mManagedImages2D;
     std::vector<std::weak_ptr<Tensor>> mManagedTensors;
     std::vector<std::weak_ptr<Sequence>> mManagedSequences;
     std::vector<std::weak_ptr<Algorithm>> mManagedAlgorithms;
