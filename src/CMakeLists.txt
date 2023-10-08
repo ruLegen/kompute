@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.20)
-
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wno-error=unused-parameter")
 if(KOMPUTE_OPT_ANDROID_BUILD)
     find_library(android android)
 endif()
-
 cmake_minimum_required(VERSION 3.20)
 
 add_library(kompute Algorithm.cpp
@@ -22,6 +21,7 @@ add_library(kompute Algorithm.cpp
 
 add_library(kompute::kompute ALIAS kompute)
 
+add_subdirectory(third_party)
 # Set version for shared libraries.
 set_target_properties(kompute
     PROPERTIES

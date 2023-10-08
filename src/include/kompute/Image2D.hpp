@@ -2,13 +2,14 @@
 #define FEATUREMATCHING_IMAGE2D_HPP
 #include <memory>
 #include "vulkan/vulkan.hpp"
-
+#include "vk_mem_alloc.h"
 namespace kp {
     class Image2D {
 
     public:
         Image2D(std::shared_ptr<vk::PhysicalDevice> physicalDevice,
                 std::shared_ptr<vk::Device> device,
+                VmaAllocator allocator,
                 vk::Format imageFormat,
                 int width,
                 int height,
@@ -33,6 +34,7 @@ namespace kp {
         int mHeight;
         void* mRawData;
     private:
+        VmaAllocator mAllocator;
         std::shared_ptr<vk::PhysicalDevice> mPhysicalDevice;
         std::shared_ptr<vk::Device> mDevice;
 
@@ -42,7 +44,6 @@ namespace kp {
                                  vk::MemoryPropertyFlags desiredMemoryTypes);
 
         vk::Image mCreatedImage;
-        vk::DeviceMemory mBindedMemory;
     };
 }
 #endif //FEATUREMATCHING_IMAGE2D_HPP
