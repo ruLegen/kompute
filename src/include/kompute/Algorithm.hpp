@@ -6,6 +6,7 @@
 #include "fmt/format.h"
 #include "kompute/Tensor.hpp"
 #include "logger/Logger.hpp"
+#include "KomputeResource.hpp"
 
 namespace kp {
 
@@ -36,7 +37,7 @@ class Algorithm
      */
     template<typename S = float, typename P = float>
     Algorithm(std::shared_ptr<vk::Device> device,
-              const std::vector<std::shared_ptr<Tensor>>& tensors = {},
+              const std::vector<std::shared_ptr<KomputeResource>>& tensors = {},
               const std::vector<uint32_t>& spirv = {},
               const Workgroup& workgroup = {},
               const std::vector<S>& specializationConstants = {},
@@ -81,7 +82,7 @@ class Algorithm
      * as this initial value.
      */
     template<typename S = float, typename P = float>
-    void rebuild(const std::vector<std::shared_ptr<Tensor>>& tensors,
+    void rebuild(const std::vector<std::shared_ptr<KomputeResource>>& tensors,
                  const std::vector<uint32_t>& spirv,
                  const Workgroup& workgroup = {},
                  const std::vector<S>& specializationConstants = {},
@@ -121,8 +122,11 @@ class Algorithm
             this->mPushConstantsSize = size;
         }
 
+        /*
         this->setWorkgroup(
-          workgroup, this->mTensors.size() ? this->mTensors[0]->size() : 1);
+          workgroup, this->mTensors.size() ? this->mTensors[0]->size() : 1);*/
+        this->setWorkgroup(workgroup, 1);
+
 
         // Descriptor pool is created first so if available then destroy all
         // before rebuild
@@ -271,14 +275,14 @@ class Algorithm
      *
      * @returns The list of tensors used in the algorithm.
      */
-    const std::vector<std::shared_ptr<Tensor>>& getTensors();
+    const std::vector<std::shared_ptr<KomputeResource>>& getTensors();
 
     void destroy();
 
   private:
     // -------------- NEVER OWNED RESOURCES
     std::shared_ptr<vk::Device> mDevice;
-    std::vector<std::shared_ptr<Tensor>> mTensors;
+    std::vector<std::shared_ptr<KomputeResource>> mTensors;
 
     // -------------- OPTIONALLY OWNED RESOURCES
     std::shared_ptr<vk::DescriptorSetLayout> mDescriptorSetLayout;

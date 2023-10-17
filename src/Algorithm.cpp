@@ -2,6 +2,7 @@
 #include <fstream>
 
 #include "kompute/Algorithm.hpp"
+#include "kompute/utils/GroupBy.hpp"
 
 namespace kp {
 
@@ -128,13 +129,18 @@ void
 Algorithm::createParameters()
 {
     KP_LOG_DEBUG("Kompute Algorithm createParameters started");
-
-    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes = {
-        vk::DescriptorPoolSize(
-          vk::DescriptorType::eStorageBuffer,
-          static_cast<uint32_t>(this->mTensors.size()) // Descriptor count
-          )
-    };
+    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes;
+    auto groupedItems =
+      groupBy(this->mTensors.begin(),
+              this->mTensors.end(),
+              [](std::shared_ptr<KomputeResource> item) -> vk::DescriptorType {
+                  return item->getDescriptorType();
+              });
+    for (auto&& g : groupedItems) {
+        auto descriptorType = g.first;
+        descriptorPoolSizes.push_back(vk::DescriptorPoolSize(
+          descriptorType, static_cast<uint32_t>(g.second.size())));
+    }
 
     vk::DescriptorPoolCreateInfo descriptorPoolInfo(
       vk::DescriptorPoolCreateFlags(),
@@ -152,7 +158,7 @@ Algorithm::createParameters()
     for (size_t i = 0; i < this->mTensors.size(); i++) {
         descriptorSetBindings.push_back(
           vk::DescriptorSetLayoutBinding(i, // Binding index
-                                         vk::DescriptorType::eStorageBuffer,
+                                         this->mTensors[i]->getDescriptorType(),
                                          1, // Descriptor count
                                          vk::ShaderStageFlagBits::eCompute));
     }
@@ -183,11 +189,10 @@ Algorithm::createParameters()
     KP_LOG_DEBUG("Kompute Algorithm updating descriptor sets");
     for (size_t i = 0; i < this->mTensors.size(); i++) {
         std::vector<vk::WriteDescriptorSet> computeWriteDescriptorSets;
-
-        vk::DescriptorBufferInfo descriptorBufferInfo =
-          this->mTensors[i]->constructDescriptorBufferInfo();
-
         computeWriteDescriptorSets.push_back(
+          this->mTensors[i]->createWriteDescriptorSet(*this->mDescriptorSet,
+                                                      i));
+        /*
           vk::WriteDescriptorSet(*this->mDescriptorSet,
                                  i, // Destination binding
                                  0, // Destination array element
@@ -195,7 +200,7 @@ Algorithm::createParameters()
                                  vk::DescriptorType::eStorageBuffer,
                                  nullptr, // Descriptor image info
                                  &descriptorBufferInfo));
-
+        */
         this->mDevice->updateDescriptorSets(computeWriteDescriptorSets,
                                             nullptr);
     }
@@ -209,8 +214,7 @@ Algorithm::createShaderModule()
     KP_LOG_DEBUG("Kompute Algorithm createShaderModule started");
 
     vk::ShaderModuleCreateInfo shaderModuleInfo(vk::ShaderModuleCreateFlags(),
-                                                sizeof(uint32_t) *
-                                                  this->mSpirv.size(),
+                                                sizeof(uint32_t) * this->mSpirv.size(),
                                                 this->mSpirv.data());
 
     KP_LOG_DEBUG("Kompute Algorithm Creating shader module. ShaderFileSize: {}",
@@ -394,7 +398,7 @@ Algorithm::getWorkgroup()
     return this->mWorkgroup;
 }
 
-const std::vector<std::shared_ptr<Tensor>>&
+const std::vector<std::shared_ptr<KomputeResource>>&
 Algorithm::getTensors()
 {
     return this->mTensors;

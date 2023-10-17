@@ -30,7 +30,7 @@ class OpMult : public OpAlgoDispatch
      * @param algorithm An algorithm that will be overridden with the OpMult
      * shader data and the tensors provided which are expected to be 3
      */
-    OpMult(std::vector<std::shared_ptr<Tensor>> tensors,
+    OpMult(std::vector<std::shared_ptr<KomputeResource>> tensors,
            std::shared_ptr<Algorithm> algorithm)
       : OpAlgoDispatch(algorithm)
     {

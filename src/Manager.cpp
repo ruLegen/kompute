@@ -167,7 +167,6 @@ namespace kp {
 #ifndef KOMPUTE_DISABLE_VK_DEBUG_LAYERS
         applicationExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 #endif
-
         vk::InstanceCreateInfo computeInstanceCreateInfo;
         computeInstanceCreateInfo.pApplicationInfo = &applicationInfo;
         if (!applicationExtensions.empty()) {
@@ -484,7 +483,6 @@ namespace kp {
         allocatorCreateInfo.instance = (VkInstance) (*instance);
         allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
 
-
         if (vmaCreateAllocator(&allocatorCreateInfo, &this->mMemAllocator) != VK_SUCCESS)
             throw "vmasCreateAllocator failure";
     }
@@ -494,14 +492,14 @@ namespace kp {
     }
 
     std::shared_ptr<Image2D>
-    Manager::image2d(vk::Format imageFormat, int width, int height, void *data) {
+    Manager::image2d(vk::Format imageFormat, int width, int height, void *data,size_t dataSize) {
         auto res = std::make_shared<Image2D>(this->mPhysicalDevice,
                                              this->mDevice,
                                              this->mMemAllocator,
                                              imageFormat,
                                              width,
                                              height,
-                                             data);
+                                             data,dataSize);
 
         if (this->mManageResources) {
             this->mManagedImages2D.push_back(res);

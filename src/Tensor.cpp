@@ -589,7 +589,25 @@ Tensor::destroy()
     KP_LOG_DEBUG("Kompute Tensor successful destroy()");
 }
 
-template<>
+    vk::WriteDescriptorSet
+    Tensor::createWriteDescriptorSet(vk::DescriptorSet dst, int bindingPosition) {
+
+       this->mBufferDesriptorInfo = constructDescriptorBufferInfo();
+
+       return vk::WriteDescriptorSet(dst,
+                               bindingPosition, // Destination binding
+                               0, // Destination array element
+                               1, // Descriptor count
+                               vk::DescriptorType::eStorageBuffer,
+                               nullptr, // Descriptor image info
+                               &this->mBufferDesriptorInfo);
+    }
+
+    vk::DescriptorType Tensor::getDescriptorType() {
+        return vk::DescriptorType::eStorageBuffer;
+    }
+
+    template<>
 Tensor::TensorDataTypes
 TensorT<bool>::dataType()
 {

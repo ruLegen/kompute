@@ -3,6 +3,7 @@
 
 #include "kompute/Core.hpp"
 #include "logger/Logger.hpp"
+#include "KomputeResource.hpp"
 #include <memory>
 #include <string>
 
@@ -16,7 +17,7 @@ namespace kp {
  * would be used to store their respective data. The tensors can be used for GPU
  * data storage or transfer.
  */
-class Tensor
+class Tensor : public KomputeResource
 {
   public:
     /**
@@ -61,6 +62,8 @@ class Tensor
            const TensorDataTypes& dataType,
            const TensorTypes& tensorType = TensorTypes::eDevice);
 
+    vk::DescriptorType getDescriptorType() override;
+
     /**
      * Destructor which is in charge of freeing vulkan resources unless they
      * have been provided externally.
@@ -90,6 +93,7 @@ class Tensor
      */
     bool isInit();
 
+    vk::WriteDescriptorSet createWriteDescriptorSet(vk::DescriptorSet dst, int bindingPosition) override;
     /**
      * Retrieve the tensor type of the Tensor
      *
@@ -142,7 +146,7 @@ class Tensor
       vk::AccessFlagBits srcAccessMask,
       vk::AccessFlagBits dstAccessMask,
       vk::PipelineStageFlagBits srcStageMask,
-      vk::PipelineStageFlagBits dstStageMask);
+      vk::PipelineStageFlagBits dstStageMask) override;
     /**
      * Records the buffer memory barrier into the staging buffer and command
      * buffer which ensures that relevant data transfers are carried out
@@ -293,6 +297,8 @@ class Tensor
 
     void mapRawData();
     void unmapRawData();
+
+    vk::DescriptorBufferInfo mBufferDesriptorInfo;
 };
 
 template<typename T>

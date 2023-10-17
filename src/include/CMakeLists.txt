@@ -15,6 +15,7 @@ target_sources(kompute PRIVATE
     kompute/Manager.hpp
     kompute/Sequence.hpp
     kompute/Tensor.hpp
+    kompute/KomputeResource.hpp
 
     kompute/operations/OpAlgoDispatch.hpp
     kompute/operations/OpBase.hpp
@@ -23,8 +24,11 @@ target_sources(kompute PRIVATE
     kompute/operations/OpTensorCopy.hpp
     kompute/operations/OpTensorSyncDevice.hpp
     kompute/operations/OpTensorSyncLocal.hpp
+    kompute/operations/OpImageSyncStageBuffers.hpp
 
     kompute/logger/Logger.hpp
+
+    kompute/utils/GroupBy.hpp
 )
 
 install(DIRECTORY kompute DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

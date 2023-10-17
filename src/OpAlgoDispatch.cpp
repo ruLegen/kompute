@@ -20,7 +20,7 @@ OpAlgoDispatch::record(const vk::CommandBuffer& commandBuffer)
     KP_LOG_DEBUG("Kompute OpAlgoDispatch record called");
 
     // Barrier to ensure the data is finished writing to buffer memory
-    for (const std::shared_ptr<Tensor>& tensor :
+    for (const std::shared_ptr<KomputeResource>& tensor :
          this->mAlgorithm->getTensors()) {
         tensor->recordPrimaryBufferMemoryBarrier(
           commandBuffer,

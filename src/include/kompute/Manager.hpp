@@ -101,7 +101,7 @@ namespace kp {
         }
 
         std::shared_ptr<Image2D>
-        image2d(vk::Format imageFormat, int width, int height, void *data);
+        image2d(vk::Format imageFormat, int width, int height, void *data,size_t dataSize);
 
 
         std::shared_ptr<Tensor> tensor(
@@ -141,7 +141,7 @@ namespace kp {
          * @returns Shared pointer with initialised algorithm
          */
         std::shared_ptr<Algorithm> algorithm(
-                const std::vector<std::shared_ptr<Tensor>> &tensors = {},
+                const std::vector<std::shared_ptr<KomputeResource>> &tensors = {},
                 const std::vector<uint32_t> &spirv = {},
                 const Workgroup &workgroup = {},
                 const std::vector<float> &specializationConstants = {},
@@ -166,7 +166,7 @@ namespace kp {
          */
         template<typename S = float, typename P = float>
         std::shared_ptr<Algorithm> algorithm(
-                const std::vector<std::shared_ptr<Tensor>> &tensors,
+                const std::vector<std::shared_ptr<KomputeResource>> &tensors,
                 const std::vector<uint32_t> &spirv,
                 const Workgroup &workgroup,
                 const std::vector<S> &specializationConstants,
@@ -263,6 +263,8 @@ namespace kp {
         void destroyAllocator();
 
         VmaVulkanFunctions getVMAFunctions();
+
+
     };
 
 } // End namespace kp
