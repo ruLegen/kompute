@@ -16,6 +16,7 @@ add_library(kompute Algorithm.cpp
     OpTensorSyncDevice.cpp
     OpTensorSyncLocal.cpp
     OpImageSyncStageBuffers.cpp
+    OpImageSyncDeviceData.cpp
     Sequence.cpp
     Tensor.cpp
     Core.cpp)

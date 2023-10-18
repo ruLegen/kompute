@@ -4,7 +4,8 @@
 #include "vulkan/vulkan.hpp"
 #include "vk_mem_alloc.h"
 #include "KomputeResource.hpp"
-
+#include "kompute/utils/Formatter.hpp"
+#include <vector>
 namespace kp {
     class Image2D : public KomputeResource {
 
@@ -37,7 +38,31 @@ namespace kp {
         bool isInit();
         void destroy();
 
+        template<typename T>
+        std::vector<T> vector(){
+            void *mappedData = nullptr;
+            vmaMapMemory(mAllocator, mStagingBufferAllocation, &mappedData);
+            auto aligment = mRawDataSize % sizeof(T);
+            if(aligment != 0){
+                throw std::runtime_error(
+                        Formatter() << "mRawDataSize % sizeof(T) = "<< aligment
+                                    <<"\n Cannot create vector of elements with size "
+                                    << sizeof (T)
+                                    << ". Cause total size is "
+                                    << mRawDataSize);
+
+            }
+
+            std::vector<T> result ((T*)mappedData, ((T*)mappedData) + (mRawDataSize/sizeof(T)));
+            vmaUnmapMemory(mAllocator,mStagingBufferAllocation);
+            return  result;
+        }
+
         virtual ~Image2D();
+
+        void writeCopyImageToBuffer(const vk::CommandBuffer &buffer);
+
+        void setLastLayout(vk::ImageLayout layout);
 
     protected:
         vk::MemoryPropertyFlags getStagingMemoryPropertyFlags();
@@ -46,7 +71,6 @@ namespace kp {
         vk::Format mImageFormat;
         int mWidth;
         int mHeight;
-        void* mRawData;
         size_t mRawDataSize;
     private:
         VmaAllocator mAllocator;
@@ -64,6 +88,9 @@ namespace kp {
         VkBuffer mStagingBuffer;
         vk::ImageView mImageView;
         vk::DescriptorImageInfo mImageDescriptorInfo;
+        vk::ImageLayout mLayout;
+        VmaAllocation mStagingBufferAllocation;
+        bool mHasStagingBufferData;
     };
 }
 #endif //FEATUREMATCHING_IMAGE2D_HPP

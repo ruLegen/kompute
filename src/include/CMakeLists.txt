@@ -25,9 +25,11 @@ target_sources(kompute PRIVATE
     kompute/operations/OpTensorSyncDevice.hpp
     kompute/operations/OpTensorSyncLocal.hpp
     kompute/operations/OpImageSyncStageBuffers.hpp
+    kompute/operations/OpImageSyncDeviceData.hpp
 
     kompute/logger/Logger.hpp
 
+    kompute/utils/Formatter.hpp
     kompute/utils/GroupBy.hpp
 )
 

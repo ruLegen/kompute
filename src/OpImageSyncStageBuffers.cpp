@@ -20,6 +20,7 @@ kp::OpImageSyncStageBuffers::~OpImageSyncStageBuffers() {
 void kp::OpImageSyncStageBuffers::record(const vk::CommandBuffer &commandBuffer) {
     for (auto&& image: this->mImages) {
         image->recordImageTransitionLayout(commandBuffer,vk::ImageLayout::eUndefined,vk::ImageLayout::eTransferDstOptimal);
+        image->setLastLayout(vk::ImageLayout::eTransferDstOptimal);
     }
     for (auto&& image: this->mImages) {
         image->recordStagingBufferCopyToImage(commandBuffer);

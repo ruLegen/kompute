@@ -15,6 +15,7 @@
 #include "operations/OpTensorSyncDevice.hpp"
 #include "operations/OpTensorSyncLocal.hpp"
 #include "operations/OpImageSyncStageBuffers.hpp"
+#include "operations/OpImageSyncDeviceData.hpp"
 
 // Will be build by CMake and placed inside the build directory
 #include "ShaderLogisticRegression.hpp"
