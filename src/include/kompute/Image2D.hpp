@@ -58,15 +58,15 @@ namespace kp {
             return  result;
         }
 
-        virtual ~Image2D();
-
         void writeCopyImageToBuffer(const vk::CommandBuffer &buffer);
+        void setData(void* data, size_t dataSize);
 
+        virtual ~Image2D();
+    private:
+        VkBuffer createStagingBuffer(VmaAllocator allocator,VmaAllocation& outAlloc,void *data, size_t dataSize);
+        bool writeDataToStaging(void *data, size_t sizeInBytes, VmaAllocator allocator,
+                                VmaAllocation &stagingAllocationInfo);
         void setLastLayout(vk::ImageLayout layout);
-
-    protected:
-        vk::MemoryPropertyFlags getStagingMemoryPropertyFlags();
-
     protected:
         vk::Format mImageFormat;
         int mWidth;
@@ -78,19 +78,16 @@ namespace kp {
         std::shared_ptr<vk::Device> mDevice;
 
 
-        uint32_t findMemoryIndex(vk::PhysicalDeviceMemoryProperties memoryProperties,
-                                 vk::MemoryRequirements memoryRequirements,
-                                 vk::MemoryPropertyFlags desiredMemoryTypes);
-
         vk::Image mCreatedImage;
 
-        VkBuffer createStagingBuffer(VmaAllocator allocator,void *data, size_t dataSize);
         VkBuffer mStagingBuffer;
         vk::ImageView mImageView;
         vk::DescriptorImageInfo mImageDescriptorInfo;
         vk::ImageLayout mLayout;
         VmaAllocation mStagingBufferAllocation;
+        VmaAllocation mImageAllocation;
         bool mHasStagingBufferData;
+
     };
 }
 #endif //FEATUREMATCHING_IMAGE2D_HPP

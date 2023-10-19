@@ -9,16 +9,14 @@ kp::Image2D::Image2D(std::shared_ptr<vk::PhysicalDevice> physicalDevice,
                      int height,
                      void* data,
                      size_t dataSize)
-      : mImageFormat(imageFormat),
-      mWidth(width),
-      mHeight(height),
-      mAllocator(allocator),
+      : mAllocator(allocator),
       mPhysicalDevice(physicalDevice),
       mDevice(device),
-      mRawDataSize(dataSize)
+      mStagingBuffer(VK_NULL_HANDLE),
+      mStagingBufferAllocation(VK_NULL_HANDLE)
 {
 
-    this->rebuild(mImageFormat, mWidth, mHeight, data, mRawDataSize);
+    rebuild(imageFormat, width, height, data, dataSize);
 }
 
 void
@@ -28,20 +26,29 @@ kp::Image2D::rebuild(vk::Format imageFormat,
                      void* data,
                      size_t dataSize)
 {
+
     KP_LOG_DEBUG("Kompute Image2D creating buffer");
 
-    if (!this->mPhysicalDevice) {
+    if (!mPhysicalDevice) {
         throw std::runtime_error("Kompute Image2D phyisical device is null");
     }
-    if (!this->mDevice) {
+    if (!mDevice) {
         throw std::runtime_error("Kompute Image2D device is null");
     }
 
-    if (this->mStagingBuffer != 0) {
-        // vmaDestroyBuffer()
+    if (mStagingBuffer != VK_NULL_HANDLE) {
+        KP_LOG_DEBUG("Kompute Image2D deleting old buffer");
+        vmaDestroyBuffer(mAllocator,mStagingBuffer,mStagingBufferAllocation);
+        mStagingBuffer = VK_NULL_HANDLE;
+        mStagingBufferAllocation = VK_NULL_HANDLE;
     }
-    this->mStagingBuffer = createStagingBuffer(mAllocator, data, dataSize);
+    mStagingBuffer = createStagingBuffer(mAllocator,mStagingBufferAllocation, data, dataSize);
 
+    if (mCreatedImage) {
+        vmaDestroyImage(mAllocator,mCreatedImage,mImageAllocation);
+        mImageAllocation = VK_NULL_HANDLE;
+        mCreatedImage = vk::Image();
+    }
     auto imageCreateInfo = (VkImageCreateInfo)vk::ImageCreateInfo(
       {},
       vk::ImageType::e2D,
@@ -55,12 +62,7 @@ kp::Image2D::rebuild(vk::Format imageFormat,
       vk::SharingMode::eExclusive,
       {},
       vk::ImageLayout::ePreinitialized);
-
-    if (this->mCreatedImage) {
-        // destroyImage
-    }
     VkImage createdImage;
-    VmaAllocation imageAllocation;
     VmaAllocationInfo allocInfo;
     VmaAllocationCreateInfo imageAllocCreateInfo{
         .usage = VMA_MEMORY_USAGE_GPU_ONLY,
@@ -69,58 +71,46 @@ kp::Image2D::rebuild(vk::Format imageFormat,
                        &imageCreateInfo,
                        &imageAllocCreateInfo,
                        &createdImage,
-                       &imageAllocation,
+                       &mImageAllocation,
                        &allocInfo) != VK_SUCCESS) {
         throw "Cannot create Image";
     }
     setLastLayout(vk::ImageLayout::ePreinitialized);
     VkMemoryPropertyFlags memPropFlags;
     vmaGetAllocationMemoryProperties(
-      mAllocator, imageAllocation, &memPropFlags);
+      mAllocator, mImageAllocation, &memPropFlags);
     if (!(memPropFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
         throw "Image created not in GPU";
     }
-    this->mCreatedImage = vk::Image(createdImage);
+    mCreatedImage = vk::Image(createdImage);
     auto imageViewCreateInfo = vk::ImageViewCreateInfo(
       {},
-      this->mCreatedImage,
+      mCreatedImage,
       vk::ImageViewType::e2D,
       imageFormat,
       {},
       vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
-    this->mImageView = this->mDevice->createImageView(imageViewCreateInfo);
-    this->mImageDescriptorInfo =
-      vk::DescriptorImageInfo(nullptr, this->mImageView);
-}
-
-
-vk::MemoryPropertyFlags
-kp::Image2D::getStagingMemoryPropertyFlags()
-{
-    return vk::MemoryPropertyFlagBits::eHostVisible |
-           vk::MemoryPropertyFlagBits::eHostCoherent;
-}
-
-uint32_t
-kp::Image2D::findMemoryIndex(
-  vk::PhysicalDeviceMemoryProperties memoryProperties,
-  vk::MemoryRequirements memoryRequirements,
-  vk::MemoryPropertyFlags memoryPropertyFlags)
-{
-
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-        if (memoryRequirements.memoryTypeBits & (1 << i) &&
-            (memoryProperties.memoryTypes[i].propertyFlags &
-             memoryPropertyFlags) == memoryPropertyFlags) {
-            return i;
-        }
+    if(mImageView){
+       mDevice->destroyImageView(mImageView, {});
+        mImageView = vk::ImageView();
     }
-    throw std::runtime_error("failed to find suitable memory type!");
+    mImageView = mDevice->createImageView(imageViewCreateInfo);
+    mImageDescriptorInfo =
+      vk::DescriptorImageInfo(nullptr, mImageView);
+
+
+    // if all success save image info
+    mImageFormat=imageFormat;
+    mWidth= width;
+    mHeight=height;
+    mRawDataSize=dataSize;
 }
+
 
 VkBuffer
 kp::Image2D::createStagingBuffer(VmaAllocator allocator,
+                                 VmaAllocation& outAlloc,
                                  void* data,
                                  size_t dataSize)
 {
@@ -140,24 +130,18 @@ kp::Image2D::createStagingBuffer(VmaAllocator allocator,
                         &bufferCreateInfo,
                         &allocCreateInfo,
                         &stagingBuffer,
-                        &mStagingBufferAllocation,
+                        &outAlloc,
                         &allocInfo) != VK_SUCCESS)
-        throw "Cannot create staging buffer";
+        throw std::runtime_error("Cannot create staging buffer");
 
     VkMemoryPropertyFlags memPropFlags;
-    vmaGetAllocationMemoryProperties(allocator, mStagingBufferAllocation, &memPropFlags);
+    vmaGetAllocationMemoryProperties(allocator, outAlloc, &memPropFlags);
     if (!(memPropFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))
-        throw "Cannot map staging buffer";
+        throw std::runtime_error("Cannot map staging buffer");
 
-    if (data != nullptr) {
-        void *mappedData = nullptr;
-        vmaMapMemory(allocator, mStagingBufferAllocation, &mappedData);
-        memcpy(mappedData, data, dataSize);
-        vmaFlushAllocation(allocator, mStagingBufferAllocation, 0, dataSize);
-        vmaUnmapMemory(allocator, mStagingBufferAllocation);
+    if(writeDataToStaging(data,dataSize,allocator,outAlloc)){
         mHasStagingBufferData = true;
-    }
-
+    };
     return stagingBuffer;
 }
 
@@ -184,25 +168,22 @@ kp::Image2D::recordPrimaryBufferMemoryBarrier(
   vk::PipelineStageFlagBits dstStageMask)
 {
     KP_LOG_DEBUG("Kompute image2d recording buffer memory barrier");
-
-    /*
-    vk::DeviceSize bufferSize = this->mRawDataSize;
-    vk::ImageMemoryBarrier bufferMemoryBarrier;
-    bufferMemoryBarrier.oldLayout = vk::ImageLayout::eUndefined;
-    bufferMemoryBarrier.newLayout = vk::ImageLayout::eUndefined;
-    bufferMemoryBarrier.image = this->mCreatedImage;
-    bufferMemoryBarrier.srcAccessMask = srcAccessMask;
-    bufferMemoryBarrier.dstAccessMask = dstAccessMask;
-    bufferMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    bufferMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    vk::ImageMemoryBarrier imageMemoryBarrier;
+    imageMemoryBarrier.oldLayout = mLayout;
+    imageMemoryBarrier.newLayout = vk::ImageLayout::eGeneral;
+    imageMemoryBarrier.image = mCreatedImage;
+    imageMemoryBarrier.srcAccessMask = srcAccessMask;
+    imageMemoryBarrier.dstAccessMask = dstAccessMask;
+    imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
     commandBuffer.pipelineBarrier(srcStageMask,
                                   dstStageMask,
                                   vk::DependencyFlags(),
                                   nullptr,
                                   nullptr,
-                                  &bufferMemoryBarrier);
-*/
+                                  imageMemoryBarrier);
+    setLastLayout(vk::ImageLayout::eGeneral);
 }
 
 vk::DescriptorType
@@ -215,7 +196,7 @@ void
 kp::Image2D::recordStagingBufferCopyToImage(
   const vk::CommandBuffer& commandBuffer)
 {
-    // If we don't have
+    // If we don't have data
     if(!mHasStagingBufferData)
         return;
     vk::BufferImageCopy region(
@@ -224,12 +205,12 @@ kp::Image2D::recordStagingBufferCopyToImage(
       0,
       vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
       { 0, 0, 0 },
-      { static_cast<uint32_t>(this->mWidth),
-        static_cast<uint32_t>(this->mHeight),
+      { static_cast<uint32_t>(mWidth),
+        static_cast<uint32_t>(mHeight),
         1 });
 
-    commandBuffer.copyBufferToImage(this->mStagingBuffer,
-                                    this->mCreatedImage,
+    commandBuffer.copyBufferToImage(mStagingBuffer,
+                                    mCreatedImage,
                                     vk::ImageLayout::eTransferDstOptimal,
                                     1,
                                     &region);
@@ -244,7 +225,7 @@ kp::Image2D::recordImageTransitionLayout(const vk::CommandBuffer& commandBuffer,
     vk::ImageMemoryBarrier bufferMemoryBarrier;
     bufferMemoryBarrier.oldLayout = oldLayout;
     bufferMemoryBarrier.newLayout = newLayout;
-    bufferMemoryBarrier.image = this->mCreatedImage;
+    bufferMemoryBarrier.image = mCreatedImage;
 
     bufferMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -276,6 +257,8 @@ kp::Image2D::recordImageTransitionLayout(const vk::CommandBuffer& commandBuffer,
                                   nullptr,
                                   nullptr,
                                   bufferMemoryBarrier);
+
+    setLastLayout(newLayout);
 }
 
 void
@@ -285,7 +268,7 @@ kp::Image2D::writeCopyImageToBuffer(const vk::CommandBuffer& commandBuffer)
     vk::ImageMemoryBarrier imageMemoryBarrier;
     imageMemoryBarrier.oldLayout = mLayout;
     imageMemoryBarrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
-    imageMemoryBarrier.image = this->mCreatedImage;
+    imageMemoryBarrier.image = mCreatedImage;
 
     imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -361,7 +344,22 @@ kp::Image2D::height()
 
 void
 kp::Image2D::destroy()
-{}
+{
+    if(mImageView){
+        mDevice->destroyImageView(mImageView, nullptr);
+        mImageView = vk::ImageView();
+    }
+    if(mCreatedImage){
+        vmaDestroyImage(mAllocator,mCreatedImage,mImageAllocation);
+        mImageAllocation = VK_NULL_HANDLE;
+        mCreatedImage = vk::Image();
+    }
+    if(mStagingBuffer != VK_NULL_HANDLE){
+        vmaDestroyBuffer(mAllocator,mStagingBuffer,mStagingBufferAllocation);
+        mStagingBufferAllocation= VK_NULL_HANDLE;
+        mStagingBuffer = VK_NULL_HANDLE;
+    }
+}
 
 kp::Image2D::~Image2D()
 {
@@ -372,4 +370,30 @@ bool
 kp::Image2D::isInit()
 {
     return mDevice && mHeight > 0 && mWidth > 0;
+}
+
+void kp::Image2D::setData(void *data, size_t dataSize)
+{
+    if(dataSize != mRawDataSize)
+        throw std::runtime_error(Formatter()<<"Old size="<<mRawDataSize<< "!= newSize="<<dataSize);
+
+    if(writeDataToStaging(data,dataSize,mAllocator,mStagingBufferAllocation)){
+        mHasStagingBufferData = true;
+    }
+}
+
+bool kp::Image2D::writeDataToStaging(void *data, size_t sizeInBytes, VmaAllocator allocator,
+                                     VmaAllocation &stagingAllocationInfo)
+{
+    if (data != nullptr) {
+        void *mappedData = nullptr;
+        vmaMapMemory(allocator, stagingAllocationInfo, &mappedData);
+        memcpy(mappedData, data, sizeInBytes);
+        vmaFlushAllocation(allocator, stagingAllocationInfo, 0, sizeInBytes);
+        vmaUnmapMemory(allocator,stagingAllocationInfo);
+        return true;
+    }else
+        return false;
+
+
 }
