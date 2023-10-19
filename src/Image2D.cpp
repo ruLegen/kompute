@@ -52,7 +52,9 @@ kp::Image2D::rebuild(vk::Format imageFormat,
       vk::SampleCountFlagBits::e1,
       vk::ImageTiling::eOptimal,
       vk::ImageUsageFlagBits::eTransferDst |vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage,
-      vk::SharingMode::eExclusive);
+      vk::SharingMode::eExclusive,
+      {},
+      vk::ImageLayout::ePreinitialized);
 
     if (this->mCreatedImage) {
         // destroyImage
@@ -71,6 +73,7 @@ kp::Image2D::rebuild(vk::Format imageFormat,
                        &allocInfo) != VK_SUCCESS) {
         throw "Cannot create Image";
     }
+    setLastLayout(vk::ImageLayout::ePreinitialized);
     VkMemoryPropertyFlags memPropFlags;
     vmaGetAllocationMemoryProperties(
       mAllocator, imageAllocation, &memPropFlags);
